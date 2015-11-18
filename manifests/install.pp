@@ -42,7 +42,7 @@ class redis::install (
           subscribe => Package['redis-server']
         }
       }
-      'Fedora', 'RedHat', 'CentOS', 'OEL', 'OracleLinux', 'Amazon', 'Scientific', 'SLES' : {
+      'Fedora', 'RedHat', 'CentOS', 'OEL', 'OracleLinux', 'Amazon', 'Scientific', 'SLES', 'OpenBSD' : {
         package { 'redis': ensure => $redis_version, }
 
         # The SLES DatabaseServer repository installs a conflicting logrotation configuration

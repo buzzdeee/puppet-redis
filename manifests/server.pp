@@ -171,9 +171,14 @@ define redis::server (
   $cluster_require_full_coverage = true,
   $protected_mode                = undef,
   $include                       = [],
+  $force_rewrite                 = false,
+  $rc_script_dir                 = $::redis::params::rc_script_dir,
+  $manage_logrotation            = $::redis::params::manage_logrotation,
 ) {
   $redis_user              = $::redis::install::redis_user
   $redis_group             = $::redis::install::redis_group
+
+  require redis
 
   $redis_install_dir = $::redis::install::redis_install_dir
   $redis_init_script = $::operatingsystem ? {
@@ -181,6 +186,7 @@ define redis::server (
     /(Fedora|RedHat|CentOS|OEL|OracleLinux|Amazon|Scientific)/ => 'redis/etc/init.d/redhat_redis-server.erb',
     /(SLES)/                                                   => 'redis/etc/init.d/sles_redis-server.erb',
     /(Gentoo)/                                                 => 'redis/etc/init.d/gentoo_redis-server.erb',
+    /(OpenBSD)/                                                => '/etc/rc.d/redis',
     default                                                    => undef,
   }
   $redis_2_6_or_greater = versioncmp($::redis::install::redis_version,'2.6') >= 0
@@ -193,6 +199,11 @@ define redis::server (
       ensure  => file,
       content => template('redis/etc/redis.conf.erb'),
       require => Class['redis::install'];
+  }
+
+  $service_name = $::operatingsystem ? {
+    'OpenBSD' => "redis_${redis_name}",
+    default   => "redis-server_${redis_name}",
   }
 
   # startup script
@@ -215,7 +226,7 @@ define redis::server (
   if $has_systemd {
     exec { "systemd_service_${redis_name}_preset":
       command     => "/bin/systemctl preset redis-server_${redis_name}.service",
-      notify      => Service["redis-server_${redis_name}"],
+      notify      => Service[$service_name],
       refreshonly => true,
     }
 
@@ -230,16 +241,30 @@ define redis::server (
       notify  => Exec["systemd_service_${redis_name}_preset"],
     }
   } else {
-    $service_file = "/etc/init.d/redis-server_${redis_name}"
-    file { $service_file:
-      ensure  => file,
-      mode    => '0755',
-      content => template($redis_init_script),
-      require => [
-        File[$conf_file],
-        File["${redis_dir}/redis_${redis_name}"]
-      ],
-      notify  => Service["redis-server_${redis_name}"],
+    if $::operatingsystem == 'OpenBSD' {
+      $service_file = "/etc/rc.d/redis_${redis_name}"
+      file { $service_file:
+        ensure  => file,
+        mode    => '0755',
+        source  => $redis_init_script,
+        require => [
+          File[$conf_file],
+          File["${redis_dir}/redis_${redis_name}"]
+        ],
+        notify  => Service[$service_name],
+      }
+    } else {
+      $service_file = "/etc/init.d/redis-server_${redis_name}"
+      file { $service_file:
+        ensure  => file,
+        mode    => '0755',
+        content => template($redis_init_script),
+        require => [
+          File[$conf_file],
+          File["${redis_dir}/redis_${redis_name}"]
+        ],
+        notify  => Service[$service_name],
+      }
     }
   }
 
@@ -278,11 +303,12 @@ define redis::server (
   }
 
   # manage redis service
-  service { "redis-server_${redis_name}":
+  service { "$service_name":
     ensure     => $running,
     enable     => $enabled,
     hasstatus  => true,
     hasrestart => true,
+    flags      => $conf_file,
     require    => File[$service_file],
     subscribe  => File[$conf_file],
   }
