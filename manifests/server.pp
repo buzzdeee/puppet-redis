@@ -34,6 +34,12 @@
 #   Path for log. Full log path is <redis_log_dir>/redis_<redis_name>.log. Default: /var/log
 # [*redis_loglevel*]
 #   Loglevel of Redis. Default: notice
+# [*redis_syslog_enabled*]
+#   syslog-enabled for the server. Default: false
+# [*redis_syslog_ident*]
+#   syslog-ident syslog identity of the server. Default: redis
+# [*redis_syslog_facility*]
+#   syslog-facility syslog facility, either 'user', or 'local0'-'local7'. Default: 'local0'
 # [*running*]
 #   Configure if Redis should be running or not. Default: true
 # [*enabled*]
@@ -140,6 +146,9 @@ define redis::server (
   $redis_run_dir                 = '/var/run/redis',
   $redis_loglevel                = 'notice',
   $redis_appedfsync              = 'everysec',
+  $redis_syslog_enabled          = false,
+  $redis_syslog_ident            = 'redis',
+  $redis_syslog_facility         = 'local0',
   $running                       = true,
   $enabled                       = true,
   $requirepass                   = undef,
@@ -185,6 +194,12 @@ define redis::server (
   }
   $redis_2_6_or_greater = versioncmp($::redis::install::redis_version,'2.6') >= 0
   $redis_with_cluster_support = versioncmp($::redis::install::redis_version,'3.0') >= 0
+
+  if $redis_syslog_enabled {
+    $syslog_enabled = 'yes'
+  } else {
+    $syslog_enabled = 'no'
+  }
 
   # redis conf file
   $conf_file_name = "redis_${redis_name}.conf"

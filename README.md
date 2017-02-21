@@ -350,6 +350,18 @@ Path for log. Full log path is <redis_log_dir>/redis_<redis_name>.log.
 
 Loglevel of Redis. Default: 'notice' (string)
 
+#####`redis_syslog_enable`
+
+Enable syslog. Default: false
+
+#####`redis_syslog_ident`
+
+Syslog identity. Default 'redis'
+
+#####`redis_syslog_facility`
+
+Syslog facility. Default 'local0'
+
 #####`running`
 
 Configure if Redis should be running or not. Default: true (boolean)
